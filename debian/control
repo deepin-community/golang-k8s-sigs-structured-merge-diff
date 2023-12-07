@@ -1,15 +1,59 @@
-Source: template-repository
-Section: unknown
+Source: golang-k8s-sigs-structured-merge-diff
+Maintainer: Debian Go Packaging Team <team+pkg-go@tracker.debian.org>
+Uploaders: Tong Sun <suntong001@users.sourceforge.net>
+Section: devel
+Testsuite: autopkgtest-pkg-go
 Priority: optional
-Maintainer: Tsic404 <liuheng@deepin.org>
-Build-Depends: debhelper (>= 11)
-Standards-Version: 4.1.3
-Homepage: https://github.com/deepin-community/template-repository
-#Vcs-Browser: https://salsa.debian.org/debian/deepin-community-template-repository
-#Vcs-Git: https://salsa.debian.org/debian/deepin-community-template-repository.git
+Build-Depends: debhelper-compat (= 13),
+               dh-sequence-golang,
+               golang-any,
+               golang-github-google-gofuzz-dev,
+               golang-github-json-iterator-go-dev,
+               golang-gopkg-yaml.v2-dev,
+Standards-Version: 4.6.0
+Vcs-Browser: https://salsa.debian.org/go-team/packages/golang-k8s-sigs-structured-merge-diff
+Vcs-Git: https://salsa.debian.org/go-team/packages/golang-k8s-sigs-structured-merge-diff.git
+Homepage: https://github.com/kubernetes-sigs/structured-merge-diff
+Rules-Requires-Root: no
+XS-Go-Import-Path: sigs.k8s.io/structured-merge-diff
 
-Package: template-repository
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: <insert up to 60 chars description>
- <insert long description, indented with spaces>
+Package: golang-k8s-sigs-structured-merge-diff-dev
+Architecture: all
+Depends: golang-github-json-iterator-go-dev,
+         golang-gopkg-yaml.v2-dev,
+         ${misc:Depends},
+Multi-Arch: foreign
+Description: implementation for "server-side apply" (library)
+ What is the apply operation?
+ .
+ It models resources in a control plane as having multiple
+ "managers". Each manager is typically trying to manage only one
+ aspect of a resource. The goal is to make it easy for disparate
+ managers to make the changes they need without messing up the things
+ that other managers are doing. In this system, both humans and
+ machines (aka "controllers") act as managers.
+ .
+ To do this, it explicitly tracks (using the fieldset data structure)
+ which fields each manager is currently managing.
+ .
+ Now, there are two basic mechanisms by which one modifies an object.
+ .
+ PUT/PATCH: This is a write command that says: "Make the object look
+ EXACTLY like X".
+ .
+ APPLY: This is a write command that says: "The fields I manage should
+ now look exactly like this (but I don't care about other fields)".
+ .
+ For PUT/PATCH, it deduces which fields will be managed based on what
+ is changing.  For APPLY, the user is explicitly stating which fields
+ they wish to manage (and therefore requesting deletion of any fields
+ that they used to manage but stop mentioning).
+ .
+ Any time a manager begins managing some new field, that field is removed
+ from all other managers. If the manager is using the APPLY command, it
+ calls these conflicts, and will not proceed unless the user passes the
+ "force" option. This prevents accidentally setting fields which some
+ other entity is managing.
+ .
+ PUT/PATCH always "force". They are mostly used by automated systems,
+ which won't do anything productive with a new error type.
