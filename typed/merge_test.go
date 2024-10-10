@@ -281,15 +281,107 @@ var mergeCases = []mergeTestCase{{
 		`{"setStr":["a","b","c"]}`,
 		`{"setStr":["a","b","c"]}`,
 	}, {
+		`{"setStr":["a","b"]}`,
+		`{"setStr":["b","a"]}`,
+		`{"setStr":["b","a"]}`,
+	}, {
+		`{"setStr":["a","b","c"]}`,
+		`{"setStr":["d","e","f"]}`,
+		`{"setStr":["a","b","c","d","e","f"]}`,
+	}, {
+		`{"setStr":["a","b","c"]}`,
+		`{"setStr":["c","d","e","f"]}`,
+		`{"setStr":["a","b","c","d","e","f"]}`,
+	}, {
+		`{"setStr":["a","b","c","g","f"]}`,
+		`{"setStr":["c","d","e","f"]}`,
+		`{"setStr":["a","b","c","g","d","e","f"]}`,
+	}, {
+		`{"setStr":["a","b","c"]}`,
+		`{"setStr":["d","e","f","x","y","z"]}`,
+		`{"setStr":["a","b","c","d","e","f","x","y","z"]}`,
+	}, {
+		`{"setStr":["c","d","e","f"]}`,
+		`{"setStr":["a","c","e"]}`,
+		`{"setStr":["a","c","d","e","f"]}`,
+	}, {
+		`{"setStr":["a","b","c","x","y","z"]}`,
+		`{"setStr":["d","e","f"]}`,
+		`{"setStr":["a","b","c","x","y","z","d","e","f"]}`,
+	}, {
+		`{"setStr":["a","b","c","x","y","z"]}`,
+		`{"setStr":["d","e","f","x","y","z"]}`,
+		`{"setStr":["a","b","c","d","e","f","x","y","z"]}`,
+	}, {
+		`{"setStr":["c","a","g","f"]}`,
+		`{"setStr":["c","f","a","g"]}`,
+		`{"setStr":["c","f","a","g"]}`,
+	}, {
+		`{"setStr":["a","b","c","d"]}`,
+		`{"setStr":["d","e","f","a"]}`,
+		`{"setStr":["b","c","d","e","f","a"]}`,
+	}, {
+		`{"setStr":["c","d","e","f","g","h","i","j"]}`,
+		`{"setStr":["2","h","3","e","4","k","l"]}`,
+		`{"setStr":["c","d","f","g","2","h","i","j","3","e","4","k","l"]}`,
+	}, {
+		`{"setStr":["a","b","c","d","e","f","g","h","i","j"]}`,
+		`{"setStr":["1","b","2","h","3","e","4","k","l"]}`,
+		`{"setStr":["a","1","b","c","d","f","g","2","h","i","j","3","e","4","k","l"]}`,
+	}, { // We have a duplicate in LHS
+		`{"setStr":["a","b","b"]}`,
+		`{"setStr":["c"]}`,
+		`{"setStr":["a","b","b","c"]}`,
+	}, { // We have a duplicate in LHS.
+		`{"setStr":["a","b","b"]}`,
+		`{"setStr":["b"]}`,
+		`{"setStr":["a","b"]}`,
+	}, { // We have a duplicate in LHS.
+		`{"setStr":["a","b","b"]}`,
+		`{"setStr":["a"]}`,
+		`{"setStr":["a","b","b"]}`,
+	}, { // We have a duplicate in LHS.
+		`{"setStr":["a","b","c","d","e","c"]}`,
+		`{"setStr":["1","b","2","e","d"]}`,
+		`{"setStr":["a","1","b","c","2","e","c","d"]}`,
+	}, { // We have a duplicate in LHS, also present in RHS, keep only one.
+		`{"setStr":["a","b","c","d","e","c"]}`,
+		`{"setStr":["1","b","2","c","e","d"]}`,
+		`{"setStr":["a","1","b","2","c","e","d"]}`,
+	}, { // We have 2 duplicates in LHS, one is replaced.
+		`{"setStr":["a","a","b","b"]}`,
+		`{"setStr":["b","c","d"]}`,
+		`{"setStr":["a","a","b","c","d"]}`,
+	}, { // We have 2 duplicates in LHS, and nothing on the right
+		`{"setStr":["a","a","b","b"]}`,
+		`{"setStr":[]}`,
+		`{"setStr":["a","a","b","b"]}`,
+	}, {
 		`{"setBool":[true]}`,
 		`{"setBool":[false]}`,
-		`{"setBool":[true,false]}`,
+		`{"setBool":[true, false]}`,
 	}, {
 		`{"setNumeric":[1,2,3.14159]}`,
 		`{"setNumeric":[1,2,3]}`,
-		// KNOWN BUG: this order is wrong
 		`{"setNumeric":[1,2,3.14159,3]}`,
-	}},
+	}, {
+		`{"setStr":["c","a","g","f","c","a"]}`,
+		`{"setStr":["c","f","a","g"]}`,
+		`{"setStr":["c","f","a","g"]}`,
+	}, {
+		`{"setNumeric":[1,2,3.14159,1,2]}`,
+		`{"setNumeric":[1,2,3]}`,
+		`{"setNumeric":[1,2,3.14159,3]}`,
+	}, {
+		`{"setBool":[true,false,true]}`,
+		`{"setBool":[false]}`,
+		`{"setBool":[true,false,true]}`,
+	}, {
+		`{"setBool":[true,false,true]}`,
+		`{"setBool":[true]}`,
+		`{"setBool":[true, false]}`,
+	},
+	},
 }, {
 	name:         "associative list",
 	rootTypeName: "myRoot",
@@ -352,6 +444,18 @@ var mergeCases = []mergeTestCase{{
 		`{"list":[{"key":"a","id":1},{"key":"a","id":2}]}`,
 		`{"list":[{"key":"a","id":1},{"key":"b","id":1},{"key":"a","id":2}]}`,
 	}, {
+		`{"list":[{"key":"b","id":2}]}`,
+		`{"list":[{"key":"a","id":1},{"key":"b","id":2},{"key":"c","id":3}]}`,
+		`{"list":[{"key":"a","id":1},{"key":"b","id":2},{"key":"c","id":3}]}`,
+	}, {
+		`{"list":[{"key":"a","id":1},{"key":"b","id":2},{"key":"c","id":3}]}`,
+		`{"list":[{"key":"c","id":3},{"key":"b","id":2}]}`,
+		`{"list":[{"key":"a","id":1},{"key":"c","id":3},{"key":"b","id":2}]}`,
+	}, {
+		`{"list":[{"key":"a","id":1},{"key":"b","id":2},{"key":"c","id":3}]}`,
+		`{"list":[{"key":"c","id":3},{"key":"a","id":1}]}`,
+		`{"list":[{"key":"b","id":2},{"key":"c","id":3},{"key":"a","id":1}]}`,
+	}, {
 		`{"atomicList":["a","a","a"]}`,
 		`{"atomicList":null}`,
 		`{"atomicList":null}`,
@@ -363,6 +467,18 @@ var mergeCases = []mergeTestCase{{
 		`{"atomicList":["a","a","a"]}`,
 		`{"atomicList":["a","a"]}`,
 		`{"atomicList":["a","a"]}`,
+	}, {
+		`{"list":[{"key":"a","id":1,"bv":true},{"key":"b","id":2},{"key":"a","id":1,"bv":false,"nv":2}]}`,
+		`{"list":[{"key":"a","id":1,"nv":3},{"key":"c","id":3},{"key":"b","id":2}]}`,
+		`{"list":[{"key":"a","id":1,"nv":3},{"key":"c","id":3},{"key":"b","id":2}]}`,
+	}, {
+		`{"list":[{"key":"a","id":1,"nv":1},{"key":"a","id":1,"nv":2}]}`,
+		`{"list":[]}`,
+		`{"list":[{"key":"a","id":1,"nv":1},{"key":"a","id":1,"nv":2}]}`,
+	}, {
+		`{"list":[{"key":"a","id":1,"nv":1},{"key":"a","id":1,"nv":2}]}`,
+		`{}`,
+		`{"list":[{"key":"a","id":1,"nv":1},{"key":"a","id":1,"nv":2}]}`,
 	}},
 }}
 
@@ -377,18 +493,16 @@ func (tt mergeTestCase) test(t *testing.T) {
 		t.Run(fmt.Sprintf("%v-valid-%v", tt.name, i), func(t *testing.T) {
 			t.Parallel()
 			pt := parser.Type(tt.rootTypeName)
-
-			lhs, err := pt.FromYAML(triplet.lhs)
+			// Former object can have duplicates in sets.
+			lhs, err := pt.FromYAML(triplet.lhs, typed.AllowDuplicates)
 			if err != nil {
 				t.Fatalf("unable to parser/validate lhs yaml: %v\n%v", err, triplet.lhs)
 			}
-
 			rhs, err := pt.FromYAML(triplet.rhs)
 			if err != nil {
 				t.Fatalf("unable to parser/validate rhs yaml: %v\n%v", err, triplet.rhs)
 			}
-
-			out, err := pt.FromYAML(triplet.out)
+			out, err := pt.FromYAML(triplet.out, typed.AllowDuplicates)
 			if err != nil {
 				t.Fatalf("unable to parser/validate out yaml: %v\n%v", err, triplet.out)
 			}

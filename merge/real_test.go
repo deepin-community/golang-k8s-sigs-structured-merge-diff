@@ -19,7 +19,6 @@ package merge_test
 import (
 	"io/ioutil"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	. "sigs.k8s.io/structured-merge-diff/v4/internal/fixture"
@@ -38,47 +37,80 @@ func read(file string) []byte {
 	return s
 }
 
-func lastPart(s string) string {
-	return s[strings.LastIndex(s, ".")+1:]
-}
-
-var parser = func() Parser {
-	s := read(testdata("k8s-schema.yaml"))
+func loadParser(name string) Parser {
+	s := read(testdata(name))
 	parser, err := typed.NewParser(typed.YAMLObject(s))
 	if err != nil {
 		panic(err)
 	}
 	return parser
-}()
+}
+
+var k8s = loadParser("k8s-schema.yaml")
+var apiresourceimport = loadParser("apiresourceimport.yaml")
+var k8s100pctOverrides = loadParser("k8s-schema-100pct-fieldoverride.yaml")
+var k8s10pctOverrides = loadParser("k8s-schema-10pct-fieldoverride.yaml")
 
 func BenchmarkOperations(b *testing.B) {
 	benches := []struct {
-		typename string
-		obj      typed.YAMLObject
+		name      string
+		parseType typed.ParseableType
+		filename  string
 	}{
 		{
-			typename: "io.k8s.api.core.v1.Pod",
-			obj:      typed.YAMLObject(read(testdata("pod.yaml"))),
+			name:      "Pod",
+			parseType: k8s.Type("io.k8s.api.core.v1.Pod"),
+			filename:  "pod.yaml",
 		},
 		{
-			typename: "io.k8s.api.core.v1.Node",
-			obj:      typed.YAMLObject(read(testdata("node.yaml"))),
+			name:      "Node",
+			parseType: k8s.Type("io.k8s.api.core.v1.Node"),
+			filename:  "node.yaml",
 		},
 		{
-			typename: "io.k8s.api.core.v1.Endpoints",
-			obj:      typed.YAMLObject(read(testdata("endpoints.yaml"))),
+			name:      "Endpoints",
+			parseType: k8s.Type("io.k8s.api.core.v1.Endpoints"),
+			filename:  "endpoints.yaml",
 		},
 		{
-			typename: "io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1beta1.CustomResourceDefinition",
-			obj:      typed.YAMLObject(read(testdata("prometheus-crd.yaml"))),
+			name:      "Node100%override",
+			parseType: k8s100pctOverrides.Type("io.k8s.api.core.v1.Node"),
+			filename:  "node.yaml",
+		},
+		{
+			name:      "Node10%override",
+			parseType: k8s10pctOverrides.Type("io.k8s.api.core.v1.Node"),
+			filename:  "node.yaml",
+		},
+		{
+			name:      "Endpoints100%override",
+			parseType: k8s100pctOverrides.Type("io.k8s.api.core.v1.Endpoints"),
+			filename:  "endpoints.yaml",
+		},
+		{
+			name:      "Endpoints10%override",
+			parseType: k8s10pctOverrides.Type("io.k8s.api.core.v1.Endpoints"),
+			filename:  "endpoints.yaml",
+		},
+		{
+			name:      "PrometheusCRD",
+			parseType: k8s.Type("io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1beta1.CustomResourceDefinition"),
+			filename:  "prometheus-crd.yaml",
+		},
+		{
+			name:      "apiresourceimport",
+			parseType: apiresourceimport.Type("apiresourceimport"),
+			filename:  "apiresourceimport-cr.yaml",
 		},
 	}
 
 	for _, bench := range benches {
-		b.Run(lastPart(bench.typename), func(b *testing.B) {
+		b.Run(bench.name, func(b *testing.B) {
+			obj := typed.YAMLObject(read(testdata(bench.filename)))
 			tests := []struct {
-				name string
-				ops  []Operation
+				name              string
+				returnInputonNoop bool
+				ops               []Operation
 			}{
 				{
 					name: "Create",
@@ -86,7 +118,7 @@ func BenchmarkOperations(b *testing.B) {
 						Update{
 							Manager:    "controller",
 							APIVersion: "v1",
-							Object:     bench.obj,
+							Object:     obj,
 						},
 					},
 				},
@@ -96,7 +128,38 @@ func BenchmarkOperations(b *testing.B) {
 						Apply{
 							Manager:    "controller",
 							APIVersion: "v1",
-							Object:     bench.obj,
+							Object:     obj,
+						},
+					},
+				},
+				{
+					name: "ApplyTwice",
+					ops: []Operation{
+						Apply{
+							Manager:    "controller",
+							APIVersion: "v1",
+							Object:     obj,
+						},
+						Apply{
+							Manager:    "other-controller",
+							APIVersion: "v1",
+							Object:     obj,
+						},
+					},
+				},
+				{
+					name:              "ApplyTwiceNoCompare",
+					returnInputonNoop: true,
+					ops: []Operation{
+						Apply{
+							Manager:    "controller",
+							APIVersion: "v1",
+							Object:     obj,
+						},
+						Apply{
+							Manager:    "other-controller",
+							APIVersion: "v1",
+							Object:     obj,
 						},
 					},
 				},
@@ -106,12 +169,12 @@ func BenchmarkOperations(b *testing.B) {
 						Update{
 							Manager:    "controller",
 							APIVersion: "v1",
-							Object:     bench.obj,
+							Object:     obj,
 						},
 						Update{
 							Manager:    "other-controller",
 							APIVersion: "v1",
-							Object:     bench.obj,
+							Object:     obj,
 						},
 					},
 				},
@@ -121,12 +184,12 @@ func BenchmarkOperations(b *testing.B) {
 						Update{
 							Manager:    "controller",
 							APIVersion: "v1",
-							Object:     bench.obj,
+							Object:     obj,
 						},
 						Update{
 							Manager:    "other-controller",
 							APIVersion: "v2",
-							Object:     bench.obj,
+							Object:     obj,
 						},
 					},
 				},
@@ -134,9 +197,10 @@ func BenchmarkOperations(b *testing.B) {
 			for _, test := range tests {
 				b.Run(test.name, func(b *testing.B) {
 					tc := TestCase{
-						Ops: test.ops,
+						Ops:               test.ops,
+						ReturnInputOnNoop: test.returnInputonNoop,
 					}
-					p := SameVersionParser{T: parser.Type(bench.typename)}
+					p := SameVersionParser{T: bench.parseType}
 					tc.PreprocessOperations(p)
 
 					b.ReportAllocs()

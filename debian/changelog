@@ -1,3 +1,12 @@
+golang-k8s-sigs-structured-merge-diff (4.4.1+ds1-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream version.
+  * section: golang
+  * Standards-Version: 4.6.2
+
+ -- Jérémy Lal <kapouer@melix.org>  Tue, 26 Dec 2023 14:41:13 +0100
+
 golang-k8s-sigs-structured-merge-diff (4.1.2+ds1-2) unstable; urgency=medium
 
   [ Debian Janitor ]

@@ -90,7 +90,18 @@ func TestFindField(t *testing.T) {
 func TestResolve(t *testing.T) {
 	existing := "existing"
 	notExisting := "not-existing"
+	numeric := Numeric
+	granular := Separable
+	atomic := Atomic
+
 	a := Atom{List: &List{}}
+	b := Atom{Scalar: &numeric}
+
+	emptyMap := Map{}
+	atomicMap := Map{ElementRelationship: Atomic}
+
+	emptyList := List{}
+	atomicList := List{ElementRelationship: Atomic}
 
 	tests := []struct {
 		testName       string
@@ -102,6 +113,10 @@ func TestResolve(t *testing.T) {
 		{"noNamedType", nil, TypeRef{Inlined: a}, a, true},
 		{"notExistingNamedType", nil, TypeRef{NamedType: &notExisting}, Atom{}, false},
 		{"existingNamedType", []TypeDef{{Name: existing, Atom: a}}, TypeRef{NamedType: &existing}, a, true},
+		{"invalidRelationshipOnScalarType", []TypeDef{{Name: existing, Atom: b}}, TypeRef{NamedType: &existing, ElementRelationship: &granular}, Atom{}, false},
+		{"mapElementRelationshipNamed", []TypeDef{{Name: existing, Atom: Atom{Map: &emptyMap}}}, TypeRef{NamedType: &existing, ElementRelationship: &atomic}, Atom{Map: &atomicMap}, true},
+		{"mapElementRelationshipInlined", nil, TypeRef{Inlined: Atom{Map: &emptyMap}, ElementRelationship: &atomic}, Atom{Map: &atomicMap}, true},
+		{"listElementRelationshipInlined", nil, TypeRef{Inlined: Atom{List: &emptyList}, ElementRelationship: &atomic}, Atom{List: &atomicList}, true},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -116,6 +131,48 @@ func TestResolve(t *testing.T) {
 			}
 			if exist != tt.expectExist {
 				t.Errorf("expected exist %t, got %t", tt.expectExist, exist)
+			}
+		})
+	}
+}
+
+func TestCopyInto(t *testing.T) {
+	existing := "existing"
+	notExisting := "not-existing"
+	a := Atom{List: &List{}}
+
+	tests := []struct {
+		testName       string
+		schemaTypeDefs []TypeDef
+		typeRef        TypeRef
+	}{
+		{"noNamedType", nil, TypeRef{Inlined: a}},
+		{"notExistingNamedType", nil, TypeRef{NamedType: &notExisting}},
+		{"existingNamedType", []TypeDef{{Name: existing, Atom: a}}, TypeRef{NamedType: &existing}},
+	}
+
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.testName, func(t *testing.T) {
+			t.Parallel()
+			s := Schema{
+				Types: tt.schemaTypeDefs,
+			}
+
+			theCopy := Schema{}
+			s.CopyInto(&theCopy)
+
+			if !reflect.DeepEqual(&s, &theCopy) {
+				t.Fatal("")
+			}
+
+			// test after resolve
+			_, _ = s.Resolve(tt.typeRef)
+			theCopy = Schema{}
+			s.CopyInto(&theCopy)
+
+			if !reflect.DeepEqual(&s, &theCopy) {
+				t.Fatal("")
 			}
 		})
 	}
